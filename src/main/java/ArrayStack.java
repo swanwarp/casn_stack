@@ -1,6 +1,5 @@
 /*
     Это стек на массиве, использующий CASN.
-    Так как я не совсем понял, как сделать EnsureCapacity для данного стэка, не попортив ничего, я еще реализовал стэк на нодах.
  */
 public class ArrayStack<T> {
     private final DataReference<Integer> top = new DataReference<Integer>(0);
@@ -17,7 +16,7 @@ public class ArrayStack<T> {
         return top.get();
     }
 
-    public void push(T element) {
+    public T push(T element) {
         Integer curtop;
 
         do {
@@ -26,20 +25,37 @@ public class ArrayStack<T> {
                 new CASEntry<Integer>(top, curtop, curtop + 1),
                 new CASEntry<T>(data[curtop], null, element)
         ));
+
+        return element;
     }
 
     public T pop() {
         Integer curtop;
         T ret;
 
-        do {
-            curtop = top.get();
-            ret = data[curtop - 1].get();
-        } while (!DataReference.CASN(
-                new CASEntry<Integer>(top, curtop, curtop - 1),
-                new CASEntry<T>(data[top.get() - 1], ret, null)
-        ));
+        while(true) {
+            try {
+                // пытаемся сделать pop()
+                do {
+                    curtop = top.get();
 
-        return ret;
+                    if (curtop == 0) {
+                        return null; // если стек пуст, возвращаем null
+                    }
+
+                    ret = data[curtop - 1].get();
+
+                } while (!DataReference.CASN(
+                        new CASEntry<Integer>(top, curtop, curtop - 1),
+                        new CASEntry<T>(data[top.get() - 1], ret, null) // здесь из-за top.get() - 1 может вылететь ArrayIndexOutOfBoundException
+                                                                        // поэтому мы пытаемся зайти в этот цикл еще раз после того, как поймали эксепшн
+                ));
+
+                return ret;
+
+            } catch (ArrayIndexOutOfBoundsException e) {
+                continue;
+            }
+        }
     }
 }
